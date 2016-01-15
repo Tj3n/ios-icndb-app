@@ -8,8 +8,9 @@
 
 import Foundation
 import RealmSwift
+import ObjectMapper
 
-class CategoryRealm: Object {
+class CategoryRealm: Object, Mappable {
     
 // Specify properties to ignore (Realm won't persist these)
     
@@ -19,9 +20,12 @@ class CategoryRealm: Object {
     
     dynamic var category = ""
     dynamic var enabled = true
-}
-
-class Categories: NSObject {
-    var category = ""
-    var enabled = true
+    
+    required convenience init?(_ map: Map) {
+        self.init()
+    }
+    
+    func mapping(map: Map) {
+        category <- map["value"]
+    }
 }
