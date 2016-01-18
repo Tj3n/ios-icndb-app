@@ -41,10 +41,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         UINavigationBar.appearance().translucent = false
         UINavigationBar.appearance().titleTextAttributes = [NSForegroundColorAttributeName:UIColor.whiteColor()]
         
-//        application.registerUserNotificationSettings(UIUserNotificationSettings(forTypes: UIUserNotificationType.Sound|UIUserNotificationType.Alert|UIUserNotificationType.Badge, categories: nil)
         application.setMinimumBackgroundFetchInterval(UIApplicationBackgroundFetchIntervalMinimum)
         application.registerUserNotificationSettings(UIUserNotificationSettings(forTypes: [.Sound,.Alert,.Badge], categories: nil))
-//        [application setMinimumBackgroundFetchInterval:UIApplicationBackgroundFetchIntervalMinimum];
         
         
         return true
@@ -68,6 +66,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func applicationDidBecomeActive(application: UIApplication) {
         // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+        UIApplication.sharedApplication().applicationIconBadgeNumber = 0
         UIApplication.sharedApplication().cancelAllLocalNotifications()
     }
 
@@ -96,6 +95,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 localNotification.alertAction = "See in app"
                 localNotification.alertBody = joke
                 localNotification.fireDate = NSDate(timeIntervalSinceNow: 0)
+                
+                print(UIApplication.sharedApplication().applicationIconBadgeNumber)
+                
+                var currentBadgeNum = UIApplication.sharedApplication().applicationIconBadgeNumber
+                currentBadgeNum++
+                
+                localNotification.applicationIconBadgeNumber = currentBadgeNum
                 UIApplication.sharedApplication().scheduleLocalNotification(localNotification)
                 
                 completionHandler(result)

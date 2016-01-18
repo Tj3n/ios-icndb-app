@@ -23,6 +23,21 @@ class TodayViewController: UIViewController, NCWidgetProviding {
             return
         }
         jokeLabel.text = jokeString
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+        
+    }
+    
+    override func viewDidAppear(animated: Bool) {
+        super.viewDidAppear(animated)
+        let jokeStore = NSUserDefaults.init(suiteName: "group.com.fun.app.icndbTest") //use to share data to today extension widget ,Need to config provisioning and App Group
+        guard let jokeString = jokeStore?.valueForKey("jokeString") as? String else {
+            jokeLabel.text = "Failed to get"
+            return
+        }
+        jokeLabel.text = jokeString
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
         
     }
     
@@ -37,6 +52,15 @@ class TodayViewController: UIViewController, NCWidgetProviding {
         // If an error is encountered, use NCUpdateResult.Failed
         // If there's no update required, use NCUpdateResult.NoData
         // If there's an update, use NCUpdateResult.NewData
+        let jokeStore = NSUserDefaults.init(suiteName: "group.com.fun.app.icndbTest") //use to share data to today extension widget ,Need to config provisioning and App Group
+        guard let jokeString = jokeStore?.valueForKey("jokeString") as? String else {
+            jokeLabel.text = "Failed to get"
+            return
+        }
+        jokeLabel.text = jokeString
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+        
         
         completionHandler(NCUpdateResult.NewData)
     }

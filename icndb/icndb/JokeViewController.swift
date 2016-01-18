@@ -8,7 +8,6 @@
 
 import UIKit
 import RealmSwift
-import ObjectMapper
 import Foundation
 
 let realm = try! Realm()
@@ -223,49 +222,48 @@ class JokeViewController: UIViewController {
 
             switch result {
             case let .Success(response):
-                do {
-                    let json: [String:AnyObject]? = try response.mapJSON() as? [String:AnyObject]
+//                do {
+                
+                    success = CategoryRealm.mapCategory(response.data)
                     
-                    if let json = json {
-                        if let type = json["type"] as? String {
-                            if type == "success" {
-                                if let valueArray = json["value"] as? [String] {
-                                    // Realms are used to group data together
-                                    let realm = try! Realm() // Create realm pointing to default file
-                                    realm.beginWrite()
-                                    realm.delete(realm.objects(CategoryRealm))
-                                    let obj = CategoryRealm()
-                                    obj.category = "Other"
-                                    realm.add(obj)
-                                    
-                                    /// -WARNING: asdf
-                                    let object = Mapper<CategoryRealm>().map(json)
-                                    print(object)
-                                    
-                                    try! realm.commitWrite()
-                                    
-                                    for value in valueArray {
-                                    
-                                        //Realm Test
-                                        let categoryRealm = CategoryRealm()
-                                        categoryRealm.category = value.firstCharacterUpperCase()
-
-                                        // Save your object
-                                        realm.beginWrite()
-                                        realm.add(categoryRealm)
-                                        try! realm.commitWrite()
-                                    }
-                                }
-                            } else {
-                                success = false
-                            }
-                        }
-                    } else {
-                        success = false
-                    }
-                } catch {
-                    success = false
-                }
+//                    let json: [String:AnyObject]? = try response.mapJSON() as? [String:AnyObject]
+//                    
+//                    if let json = json {
+//                        if let type = json["type"] as? String {
+//                            if type == "success" {
+//                                if let valueArray = json["value"] as? [String] {
+//                                    // Realms are used to group data together
+//                                    let realm = try! Realm() // Create realm pointing to default file
+//                                    realm.beginWrite()
+//                                    realm.delete(realm.objects(CategoryRealm))
+//                                    let obj = CategoryRealm()
+//                                    obj.category = "Other"
+//                                    realm.add(obj)
+//                                    
+//                                    try! realm.commitWrite()
+//                                    
+//                                    for value in valueArray {
+//                                    
+//                                        //Realm Test
+//                                        let categoryRealm = CategoryRealm()
+//                                        categoryRealm.category = value.firstCharacterUpperCase()
+//
+//                                        // Save your object
+//                                        realm.beginWrite()
+//                                        realm.add(categoryRealm)
+//                                        try! realm.commitWrite()
+//                                    }
+//                                }
+//                            } else {
+//                                success = false
+//                            }
+//                        }
+//                    } else {
+//                        success = false
+//                    }
+//                } catch {
+//                    success = false
+//                }
                 
                 dispatch_async(dispatch_get_main_queue(), { () -> Void in
                     
