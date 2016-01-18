@@ -12,6 +12,24 @@ import UIKit
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
+    
+    //Check for ios9
+    enum FetchState: Int {
+        case NotFetching = 1
+        case DidFetch = 2
+        
+//        init() {
+//            self = .NotFetching
+//        }
+        
+        var description : Int {
+            get {
+                return self.rawValue
+            }
+        }
+    }
+    
+    private(set) var fetch: FetchState = .NotFetching
 
 
     func application(application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?) -> Bool {
@@ -23,12 +41,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         UINavigationBar.appearance().translucent = false
         UINavigationBar.appearance().titleTextAttributes = [NSForegroundColorAttributeName:UIColor.whiteColor()]
         
+        application.setMinimumBackgroundFetchInterval(UIApplicationBackgroundFetchIntervalMinimum)
+        application.registerUserNotificationSettings(UIUserNotificationSettings(forTypes: [.Sound,.Alert,.Badge], categories: nil))
+        
+        
         return true
     }
 
     func applicationWillResignActive(application: UIApplication) {
         // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
         // Use this method to pause ongoing tasks, disable timers, and throttle down OpenGL ES frame rates. Games should use this method to pause the game.
+        
+        
     }
 
     func applicationDidEnterBackground(application: UIApplication) {
@@ -42,12 +66,53 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func applicationDidBecomeActive(application: UIApplication) {
         // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+        UIApplication.sharedApplication().applicationIconBadgeNumber = 0
+        UIApplication.sharedApplication().cancelAllLocalNotifications()
     }
 
     func applicationWillTerminate(application: UIApplication) {
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
     }
 
-
+    func application(application: UIApplication, didReceiveLocalNotification notification: UILocalNotification) {
+        print(notification.alertBody)
+        UIApplication.sharedApplication().cancelAllLocalNotifications()
+        
+    }
+    
+    //Test background fetch
+    func application(application: UIApplication, performFetchWithCompletionHandler completionHandler: (UIBackgroundFetchResult) -> Void) {
+        //iOS 9 called twice, need check
+        if fetch == .NotFetching {
+            fetch = .DidFetch
+            
+            let fetchStart = NSDate()
+            let navigation = self.window?.rootViewController as! UINavigationController
+            let vc = navigation.topViewController as! JokeViewController
+            
+            vc.getJoke(Person.sharedPerson) { [weak self](result, joke) -> Void in
+                let localNotification:UILocalNotification = UILocalNotification()
+                localNotification.alertAction = "See in app"
+                localNotification.alertBody = joke
+                localNotification.fireDate = NSDate(timeIntervalSinceNow: 0)
+                
+                print(UIApplication.sharedApplication().applicationIconBadgeNumber)
+                
+                var currentBadgeNum = UIApplication.sharedApplication().applicationIconBadgeNumber
+                currentBadgeNum++
+                
+                localNotification.applicationIconBadgeNumber = currentBadgeNum
+                UIApplication.sharedApplication().scheduleLocalNotification(localNotification)
+                
+                completionHandler(result)
+                self?.fetch = .NotFetching
+                
+                let fetchEnd = NSDate()
+                print("Background Fetch Duration:\(fetchEnd.timeIntervalSinceDate(fetchStart)) seconds")
+            }
+        } else {
+            completionHandler(.NoData)
+        }
+    }
 }
 

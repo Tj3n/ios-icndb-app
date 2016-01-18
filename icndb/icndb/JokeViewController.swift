@@ -8,6 +8,9 @@
 
 import UIKit
 import RealmSwift
+import Foundation
+
+let realm = try! Realm()
 
 class JokeViewController: UIViewController {
     
@@ -22,35 +25,36 @@ class JokeViewController: UIViewController {
     @IBOutlet var firstNameTextField: UITextField! {
         didSet {
             firstNameTextField.delegate = self
+            firstNameTextField.text = Person.sharedPerson.firstName
         }
     }
     @IBOutlet var lastNameTextField: UITextField!{
         didSet {
             lastNameTextField.delegate = self
+            lastNameTextField.text = Person.sharedPerson.lastName
         }
     }
-    @IBOutlet var jokeLabel: UILabel!
+    @IBOutlet var jokeLabel: UILabel! {
+        didSet {
+        }
+    }
     @IBOutlet var generateButton: UIButton!
     @IBOutlet var categoryTableView: UITableView!
     @IBOutlet var categoryTableHeight: NSLayoutConstraint!
     @IBOutlet var loadingIndicator: UIActivityIndicatorView!
     @IBOutlet var resetButton: UIBarButtonItem!
     
-    var realm = try! Realm()
+//    let realm = try! Realm()
     let categoryRealm = try! Realm().objects(CategoryRealm)
     
     override func viewDidLoad() {
         super.viewDidLoad()
         categoryTableView.tableFooterView = UIView()
         
-//        let obj = categoryRealm()
-//        obj.category = "Other"
-//        categoryRealm.append(obj)
-        
         categoryTableView.reloadData()
         let frame = categoryTableView.rectForSection(0) as CGRect!
-        categoryTableHeight.constant = frame.size.height >= 150 ? 150 : frame.size.height
-        categoryTableView.bounces = frame.size.height >= 150 ? true : false
+        categoryTableHeight.constant = frame.size.height >= 140 ? 140 : frame.size.height
+        categoryTableView.bounces = frame.size.height >= 140 ? true : false
         view.layoutIfNeeded()
         
         getcategoryRealm()
@@ -62,6 +66,10 @@ class JokeViewController: UIViewController {
         // Dispose of any resources that can be recreated.
     }
     
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        jokeLabel.preferredMaxLayoutWidth =  self.view.bounds.size.width
+    }
     
     @IBAction func resetButtonPressed(sender: AnyObject) {
         jokeLabel.text = "Enter name and press Generate"
@@ -73,12 +81,16 @@ class JokeViewController: UIViewController {
     @IBAction func generateButtonPressed(sender: AnyObject) {
         jokeLabel.text = ""
         loadingIndicator.startAnimating()
-        getJoke(firstNameTextField.text, lastName: lastNameTextField.text, category: categoryRealm)
+        
+        Person.sharedPerson.firstName = firstNameTextField.text!
+        Person.sharedPerson.lastName = lastNameTextField.text!
+        
+        getJoke(Person.sharedPerson, completionHandler: nil)
     }
     
-    func getJoke(firstName: String? , lastName: String?, category: Results<CategoryRealm>) {
+    func getJoke(person: Person, completionHandler:((UIBackgroundFetchResult, String) -> Void)?) {
         
-        let array = generateJokeCase(category)
+        let array = generateJokeCase(categoryRealm)
         var arrayLimit = [String]()
         var arrayExclude = [String]()
         var none = false
@@ -88,15 +100,18 @@ class JokeViewController: UIViewController {
             break
         case.Exclude:
              arrayExclude = array
+             print("Exclude \(arrayExclude)")
             break
         case .Limit:
              arrayLimit = array
+             print("Limit \(arrayLimit)")
+
             break
         case.None:
             none = true
         }
         
-        NetworkProvider.request(.Joke(firstName!.firstCharacterUpperCase(),lastName!.firstCharacterUpperCase(),arrayLimit,arrayExclude)) { [weak self] (result) -> () in
+        NetworkProvider.request(.Joke(person.firstName, person.lastName, arrayLimit,arrayExclude)) { [weak self] (result) -> () in
             var success = true
             var message = "Unable to fetch from API"
             let messageNone = "No category choosed"
@@ -116,7 +131,11 @@ class JokeViewController: UIViewController {
                                         if let joke = value["joke"] as? String  {
                                             dispatch_async(dispatch_get_main_queue(), { () -> Void in
                                                 self?.loadingIndicator.stopAnimating()
-                                                self?.jokeLabel.text = String(htmlEncodedString: joke)
+                                                let jokeString = String(htmlEncodedString: joke)
+                                                self?.jokeLabel.text = jokeString
+                                                let jokeStore = NSUserDefaults.init(suiteName: "group.com.fun.app.icndbTest") //use to share data to today extension widget
+                                                jokeStore?.setValue(jokeString, forKey: "jokeString")
+                                                completionHandler?(.NewData, jokeString)
                                             })
                                         }
                                     }
@@ -144,6 +163,8 @@ class JokeViewController: UIViewController {
             }
             
             if !success {
+                completionHandler?(.Failed, "Failed to fetch")
+                
                 let alertController = UIAlertController(title: "Category Fetch", message: none == false ? message : messageNone, preferredStyle: .Alert)
                 let ok = UIAlertAction(title: "OK", style: .Default, handler: { (action) -> Void in
                     alertController.dismissViewControllerAnimated(true, completion: nil)
@@ -160,7 +181,7 @@ class JokeViewController: UIViewController {
         }
     }
     
-    func generateJokeCase(category: Results<CategoryRealm>) -> [String] {
+    private func generateJokeCase(category: Results<CategoryRealm>) -> [String] {
         var array = [String]()
         var allFalse = true
         jokeCase = .All
@@ -180,7 +201,7 @@ class JokeViewController: UIViewController {
                 allFalse = false
                 if obj.category != "Other" && obj.enabled == false && jokeCase == .Exclude {
                     array.append(obj.category.lowercaseString)
-                } else if obj.category != "Other" && jokeCase == .Limit {
+                } else if obj.category != "Other" && obj.enabled == true && jokeCase == .Limit {
                     array.append(obj.category.lowercaseString)
                 }
             }
@@ -192,7 +213,7 @@ class JokeViewController: UIViewController {
         return array
     }
     
-    func getcategoryRealm() {
+    private func getcategoryRealm() {
         NetworkProvider.request(.Category, completion: {[weak self] result in
             
             var success = true
@@ -201,44 +222,48 @@ class JokeViewController: UIViewController {
 
             switch result {
             case let .Success(response):
-                do {
-                    let json: [String:AnyObject]? = try response.mapJSON() as? [String:AnyObject]
+//                do {
+                
+                    success = CategoryRealm.mapCategory(response.data)
                     
-                    if let json = json {
-                        if let type = json["type"] as? String {
-                            if type == "success" {
-                                if let valueArray = json["value"] as? [String] {
-                                    // Realms are used to group data together
-                                    let realm = try! Realm() // Create realm pointing to default file
-                                    realm.beginWrite()
-                                    realm.delete(realm.objects(CategoryRealm))
-                                    let obj = CategoryRealm()
-                                    obj.category = "Other"
-                                    realm.add(obj)
-                                    try! realm.commitWrite()
-                                    
-                                    for value in valueArray {
-                                    
-                                        //Realm Test
-                                        let categoryRealm = CategoryRealm()
-                                        categoryRealm.category = value.firstCharacterUpperCase()
-
-                                        // Save your object
-                                        realm.beginWrite()
-                                        realm.add(categoryRealm)
-                                        try! realm.commitWrite()
-                                    }
-                                }
-                            } else {
-                                success = false
-                            }
-                        }
-                    } else {
-                        success = false
-                    }
-                } catch {
-                    success = false
-                }
+//                    let json: [String:AnyObject]? = try response.mapJSON() as? [String:AnyObject]
+//                    
+//                    if let json = json {
+//                        if let type = json["type"] as? String {
+//                            if type == "success" {
+//                                if let valueArray = json["value"] as? [String] {
+//                                    // Realms are used to group data together
+//                                    let realm = try! Realm() // Create realm pointing to default file
+//                                    realm.beginWrite()
+//                                    realm.delete(realm.objects(CategoryRealm))
+//                                    let obj = CategoryRealm()
+//                                    obj.category = "Other"
+//                                    realm.add(obj)
+//                                    
+//                                    try! realm.commitWrite()
+//                                    
+//                                    for value in valueArray {
+//                                    
+//                                        //Realm Test
+//                                        let categoryRealm = CategoryRealm()
+//                                        categoryRealm.category = value.firstCharacterUpperCase()
+//
+//                                        // Save your object
+//                                        realm.beginWrite()
+//                                        realm.add(categoryRealm)
+//                                        try! realm.commitWrite()
+//                                    }
+//                                }
+//                            } else {
+//                                success = false
+//                            }
+//                        }
+//                    } else {
+//                        success = false
+//                    }
+//                } catch {
+//                    success = false
+//                }
                 
                 dispatch_async(dispatch_get_main_queue(), { () -> Void in
                     
@@ -312,9 +337,9 @@ extension JokeViewController: UITableViewDelegate, UITableViewDataSource {
         cell.bind(categoryRealm[indexPath.row])
         cell.handleToggle = { [weak self] in
             let obj = self?.categoryRealm[indexPath.row]
-            self?.realm.beginWrite()
+            realm.beginWrite()
             obj!.enabled = !obj!.enabled
-            try! self?.realm.commitWrite()
+            try! realm.commitWrite()
         }
 
         
