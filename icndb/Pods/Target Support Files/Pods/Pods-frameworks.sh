@@ -89,6 +89,10 @@ if [[ "$CONFIGURATION" == "Debug" ]]; then
   install_framework "Pods/Realm.framework"
   install_framework "Pods/RealmSwift.framework"
   install_framework "Pods/Result.framework"
+  install_framework "Pods/RxBlocking.framework"
+  install_framework "Pods/RxCocoa.framework"
+  install_framework "Pods/RxSwift.framework"
+  install_framework "Pods/SwiftyJSON.framework"
 fi
 if [[ "$CONFIGURATION" == "Release" ]]; then
   install_framework "Pods/Alamofire.framework"
@@ -96,4 +100,8 @@ if [[ "$CONFIGURATION" == "Release" ]]; then
   install_framework "Pods/Realm.framework"
   install_framework "Pods/RealmSwift.framework"
   install_framework "Pods/Result.framework"
+  install_framework "Pods/RxBlocking.framework"
+  install_framework "Pods/RxCocoa.framework"
+  install_framework "Pods/RxSwift.framework"
+  install_framework "Pods/SwiftyJSON.framework"
 fi
